@@ -7,25 +7,35 @@
 
     <style>
         body {
-            font-family: Arial;
-            background: #0f172a;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #000000, #0f172a);
             color: white;
             text-align: center;
             padding: 20px;
         }
 
+        h1 {
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
         .box {
-            background: #1e293b;
+            background: white;
+            color: black;
             padding: 25px;
-            border-radius: 10px;
-            max-width: 420px;
+            border-radius: 12px;
+            max-width: 450px;
             margin: auto;
+            box-shadow: 0 0 25px rgba(0,0,0,0.6);
         }
 
         input, select {
             width: 90%;
             padding: 12px;
             margin: 10px;
+            border: 2px solid black;
+            border-radius: 6px;
+            font-size: 14px;
         }
 
         button {
@@ -34,18 +44,36 @@
             border: none;
             color: white;
             cursor: pointer;
-            margin: 5px;
+            margin: 6px;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #16a34a;
         }
 
         #result {
             margin-top: 20px;
             text-align: left;
-            white-space: pre-wrap;
+            background: #f8fafc;
+            color: black;
+            padding: 15px;
+            border-radius: 8px;
+            line-height: 1.6;
+        }
+
+        #result b {
+            display: block;
+            margin-top: 10px;
         }
 
         #history {
             margin-top: 20px;
             text-align: left;
+            background: #f1f5f9;
+            padding: 10px;
+            border-radius: 8px;
         }
     </style>
 </head>
@@ -108,7 +136,7 @@ async function signup() {
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
 
-    const res = await fetch("/signup", {
+    await fetch("/signup", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({username, password})
@@ -147,6 +175,14 @@ function showApp(username) {
     currentUser = username;
 }
 
+// ================= FORMAT FUNCTION =================
+function formatText(text) {
+    return text
+        .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
+        .replace(/\n/g, "<br>")
+        .replace(/\* /g, "• ");
+}
+
 // ================= GENERATE =================
 async function generate() {
     const product = document.getElementById("product").value;
@@ -169,7 +205,7 @@ async function generate() {
         });
 
         const data = await res.json();
-        resultDiv.innerHTML = data.campaign || "Error";
+        resultDiv.innerHTML = formatText(data.campaign || "Error");
 
     } catch {
         resultDiv.innerHTML = "❌ Server error";
