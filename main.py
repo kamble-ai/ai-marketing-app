@@ -1,6 +1,20 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from groq import Groq
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+def ai_generate(prompt):
+    response = client.chat.completions.create(
+        model="llama3-70b-8192",
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return response.choices[0].message.content
+
 
 app = FastAPI()
 
@@ -37,8 +51,26 @@ async def generate(data: dict):
     # ===============================
     # INSTAGRAM AGENT
     # ===============================
-    def instagram_agent():
-        return f"""
+    def instagram_agent(product, audience):
+    prompt = f"""
+    Create a HIGH-CONVERTING Instagram marketing plan.
+
+    Product: {product}
+    Target Audience: {audience}
+
+    Give output in this format:
+
+    1. Strategy (clear steps)
+    2. Growth Plan
+    3. Do's and Don'ts
+    4. Top 5 Psychological Captions
+    5. Top 5 Viral Hashtags (latest trends)
+    6. Disclaimer
+    7. Pin Comment (high converting CTA)
+    """
+
+    return ai_generate(prompt)
+
 📱 INSTAGRAM STRATEGY
 
 🎯 Strategy:
@@ -254,7 +286,7 @@ Comment PLAN to get full guide
     # ROUTING
     # ===============================
     if platform == "instagram":
-        result = instagram_agent()
+        result = instagram_agent(product, audience)
 
     elif platform == "facebook ads":
         result = facebook_agent()
