@@ -71,7 +71,6 @@ async def generate(data: dict):
 
     return ai_generate(prompt)
 
-📱 INSTAGRAM STRATEGY
 
 🎯 Strategy:
 - Use reels (3-5/week)
