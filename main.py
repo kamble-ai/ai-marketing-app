@@ -1,23 +1,51 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 from groq import Groq
 import os
+import sqlite3
 from dotenv import load_dotenv
 
+# =========================
+# DATABASE SETUP
+# =========================
+conn = sqlite3.connect("app.db", check_same_thread=False)
+cursor = conn.cursor()
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE,
+    password TEXT
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT,
+    product TEXT,
+    audience TEXT,
+    platform TEXT,
+    result TEXT
+)
+""")
+
+conn.commit()
+
+# =========================
+# LOAD ENV
+# =========================
 load_dotenv()
+
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-def ai_generate(prompt):
-    response = client.chat.completions.create(
-        model="llama3-70b-8192",
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return response.choices[0].message.content
-
+# =========================
+# FASTAPI INIT
+# =========================
 app = FastAPI()
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -26,136 +54,135 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Serve frontend
-@app.get("/")
-def home():
-    return FileResponse("index.html")
+# =========================
+# MODELS
+# =========================
+class User(BaseModel):
+    username: str
+    password: str
+
+class GenerateRequest(BaseModel):
+    username: str
+    product: str
+    audience: str
+    platform: str
 
 # =========================
-# INSTAGRAM AGENT
+# AI FUNCTION
+# =========================
+def ai_generate(prompt):
+    response = client.chat.completions.create(
+        model="llama3-70b-8192",
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return response.choices[0].message.content
+
+# =========================
+# AUTH ROUTES
+# =========================
+@app.post("/signup")
+def signup(user: User):
+    try:
+        cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (user.username, user.password))
+        conn.commit()
+        return {"message": "User created"}
+    except:
+        raise HTTPException(status_code=400, detail="User already exists")
+
+@app.post("/login")
+def login(user: User):
+    cursor.execute("SELECT * FROM users WHERE username=? AND password=?", (user.username, user.password))
+    result = cursor.fetchone()
+    if result:
+        return {"message": "Login success"}
+    else:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+# =========================
+# AGENTS
 # =========================
 def instagram_agent(product, audience):
     prompt = f"""
 Create a HIGH-CONVERTING Instagram marketing plan.
 
 Product: {product}
-Target Audience: {audience}
+Audience: {audience}
 
-Give output in this format:
+Give:
 1. Strategy
 2. Growth Plan
-3. Do's and Don'ts
-4. Top 5 Psychological Captions
-5. Top 5 Viral Hashtags
-6. Disclaimer
-7. Pin Comment
+3. Do's & Don'ts
+4. 5 Captions
+5. Hashtags
+6. CTA
 """
     return ai_generate(prompt)
 
-# =========================
-# FACEBOOK AGENT
-# =========================
 def facebook_agent(product, audience):
     prompt = f"""
-Create a HIGH-CONVERTING Facebook Ads strategy.
+Create Facebook Ads strategy.
 
 Product: {product}
-Target Audience: {audience}
+Audience: {audience}
 
-Include:
-- Strategy
-- Growth Plan
-- Do's and Don'ts
-- 5 Captions
-- Hashtags
-- CTA
+Include strategy, captions, hashtags, CTA.
 """
     return ai_generate(prompt)
 
-# =========================
-# GOOGLE ADS AGENT
-# =========================
 def google_agent(product, audience):
     prompt = f"""
-Create a HIGH-CONVERTING Google Ads campaign.
+Create Google Ads campaign.
 
 Product: {product}
-Target Audience: {audience}
+Audience: {audience}
 
-Include:
-- Strategy
-- Keywords
-- Headlines
-- Do's and Don'ts
-- CTA
+Include keywords, headlines, strategy.
 """
     return ai_generate(prompt)
 
-# =========================
-# YOUTUBE SHORTS AGENT
-# =========================
 def youtube_short_agent(product, audience):
     prompt = f"""
-Create a viral YouTube Shorts strategy.
+Create YouTube Shorts strategy.
 
 Product: {product}
-Target Audience: {audience}
+Audience: {audience}
 
-Include:
-- Hook
-- Strategy
-- Captions
-- Hashtags
+Include hook, captions, hashtags.
 """
     return ai_generate(prompt)
 
-# =========================
-# YOUTUBE LONG AGENT
-# =========================
 def youtube_long_agent(product, audience):
     prompt = f"""
-Create a YouTube long video strategy.
+Create YouTube long video plan.
 
 Product: {product}
-Target Audience: {audience}
+Audience: {audience}
 
-Include:
-- Content plan
-- Titles
-- SEO strategy
-- Growth tips
+Include SEO, titles, strategy.
 """
     return ai_generate(prompt)
 
 # =========================
-# MAIN ROUTE
+# GENERATE ROUTE
 # =========================
 @app.post("/generate")
-async def generate(data: dict):
-    product = data.get("product")
-    audience = data.get("audience")
-    platform = data.get("platform")
+def generate(data: GenerateRequest):
 
-    if not product or not audience or not platform:
-        return {"error": "Missing input"}
-
-    platform = platform.lower()
+    product = data.product
+    audience = data.audience
+    platform = data.platform.lower()
+    username = data.username
 
     if platform == "instagram":
         result = instagram_agent(product, audience)
-
     elif platform == "facebook ads":
         result = facebook_agent(product, audience)
-
     elif platform == "google ads":
         result = google_agent(product, audience)
-
     elif platform == "youtube shorts":
         result = youtube_short_agent(product, audience)
-
     elif platform == "youtube long":
         result = youtube_long_agent(product, audience)
-
     elif platform == "all":
         result = "\n\n".join([
             instagram_agent(product, audience),
@@ -164,8 +191,30 @@ async def generate(data: dict):
             youtube_short_agent(product, audience),
             youtube_long_agent(product, audience),
         ])
-
     else:
-        return {"error": "Invalid platform"}
+        raise HTTPException(status_code=400, detail="Invalid platform")
+
+    # SAVE HISTORY
+    cursor.execute(
+        "INSERT INTO history (username, product, audience, platform, result) VALUES (?, ?, ?, ?, ?)",
+        (username, product, audience, platform, result)
+    )
+    conn.commit()
 
     return {"campaign": result}
+
+# =========================
+# HISTORY ROUTE
+# =========================
+@app.get("/history/{username}")
+def get_history(username: str):
+    cursor.execute("SELECT product, audience, platform, result FROM history WHERE username=?", (username,))
+    data = cursor.fetchall()
+    return {"history": data}
+
+# =========================
+# FRONTEND
+# =========================
+@app.get("/")
+def home():
+    return FileResponse("index.html")
