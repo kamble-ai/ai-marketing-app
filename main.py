@@ -71,11 +71,15 @@ class GenerateRequest(BaseModel):
 # AI FUNCTION
 # =========================
 def ai_generate(prompt):
-    response = client.chat.completions.create(
-        model="llama3-70b-8192",
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return response.choices[0].message.content
+    try:
+        response = client.chat.completions.create(
+            model="llama3-8b-8192",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        print("AI ERROR:", e)
+        return "❌ AI failed. Check API / model."
 
 # =========================
 # AUTH ROUTES
