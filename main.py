@@ -1,16 +1,9 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
-import os
-from dotenv import load_dotenv
-from groq import Groq
 from fastapi.middleware.cors import CORSMiddleware
-
-# Load env
-load_dotenv()
 
 app = FastAPI()
 
-# CORS (important for frontend)
+# Allow frontend to call backend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -19,113 +12,64 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Groq client
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-
-# Request schema
-class RequestData(BaseModel):
-    product: str
-    audience: str
-    platform: str
-
+# Root check
 @app.get("/")
 def home():
     return {"message": "AI SaaS Multi-Agent Running 🚀"}
 
-# 🔥 MULTI-AGENT SYSTEM
+# Multi-agent generator
 @app.post("/generate")
-def generate(data: RequestData):
-    try:
+async def generate(data: dict):
+    product = data.get("product")
+    audience = data.get("audience")
+    platform = data.get("platform")
 
-        # 🧠 Agent 1: Strategy
-        strategy_prompt = f"""
-        Create a marketing STRATEGY.
+    if not product or not audience or not platform:
+        return {"error": "Missing input"}
 
-        Product: {data.product}
-        Audience: {data.audience}
-        Platform: {data.platform}
+    # Multi-agent logic
+    def instagram_agent():
+        return f"📸 Instagram Ad:\nBoost your {product} for {audience} with eye-catching reels!"
 
-        Give:
-        - Clear campaign idea
-        - Content direction
-        """
+    def facebook_agent():
+        return f"📘 Facebook Ad:\nPromote {product} to {audience} with targeted campaigns."
 
-        strategy = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[{"role": "user", "content": strategy_prompt}]
-        ).choices[0].message.content
+    def google_agent():
+        return f"🔍 Google Ads:\nRun high-converting ads for {product} targeting {audience}."
 
-        # ✍️ Agent 2: Content (Captions)
-        content_prompt = f"""
-        Generate HIGH CONVERTING psychological captions.
+    def youtube_short_agent():
+        return f"🎬 YouTube Shorts:\nCreate viral short videos for {product} targeting {audience}."
 
-        Platform: {data.platform}
-        Product: {data.product}
+    def youtube_long_agent():
+        return f"📺 YouTube Long:\nCreate detailed video marketing for {product} targeting {audience}."
 
-        Give 5 captions:
-        - curiosity driven
-        - emotional trigger
-        - short and viral
-        """
+    result = ""
 
-        captions = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[{"role": "user", "content": content_prompt}]
-        ).choices[0].message.content
+    if platform == "Instagram":
+        result = instagram_agent()
 
-        # 🔍 Agent 3: SEO
-        seo_prompt = f"""
-        Generate SEO hashtags.
+    elif platform == "Facebook Ads":
+        result = facebook_agent()
 
-        Product: {data.product}
-        Platform: {data.platform}
+    elif platform == "Google Ads":
+        result = google_agent()
 
-        Give:
-        - Top 10 hashtags
-        - Trending keywords
-        """
+    elif platform == "YouTube Shorts":
+        result = youtube_short_agent()
 
-        hashtags = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[{"role": "user", "content": seo_prompt}]
-        ).choices[0].message.content
+    elif platform == "YouTube Long":
+        result = youtube_long_agent()
 
-        # 📈 Agent 4: Growth + Do/Don't
-        growth_prompt = f"""
-        Give growth strategy.
+    elif platform == "All Platforms":
+        result = "\n\n".join([
+            instagram_agent(),
+            facebook_agent(),
+            google_agent(),
+            youtube_short_agent(),
+            youtube_long_agent()
+        ])
 
-        Product: {data.product}
-        Platform: {data.platform}
+    else:
+        return {"error": "Invalid platform"}
 
-        Include:
-        - Do’s
-        - Don’ts
-        - Motivation tips
-        """
-
-        growth = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[{"role": "user", "content": growth_prompt}]
-        ).choices[0].message.content
-
-        # 📦 Combine all agents
-        final_output = f"""
-🔥 AI MARKETING PLAN
-
-================ STRATEGY ================
-{strategy}
-
-================ CAPTIONS ================
-{captions}
-
-================ SEO & HASHTAGS ================
-{hashtags}
-
-================ GROWTH GUIDE ================
-{growth}
-"""
-
-        return {"campaign": final_output}
-
-    except Exception as e:
-        return {"error": str(e)}
+    return {"campaign": result}
