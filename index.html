@@ -1,102 +1,97 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AI Marketing SaaS</title>
+    <title>AI Marketing SaaS</title>
 
-  <!-- PDF Library -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- PDF Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
-  <style>
-    body {
-      font-family: Arial;
-      background: #0f172a;
-      color: white;
-      text-align: center;
-      margin: 0;
-      padding: 20px;
-    }
+    <style>
+        body {
+            font-family: Arial;
+            background: #0f172a;
+            color: white;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
 
-    h1 {
-      margin-bottom: 20px;
-    }
+        h1 {
+            margin-bottom: 20px;
+        }
 
-    .box {
-      background: #1e293b;
-      padding: 25px;
-      border-radius: 10px;
-      width: 90%;
-      max-width: 420px;
-      margin: auto;
-      box-shadow: 0 0 20px rgba(0,0,0,0.4);
-    }
+        .box {
+            background: #1e293b;
+            padding: 25px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 420px;
+            margin: auto;
+            box-shadow: 0 0 20px rgba(0,0,0,0.4);
+        }
 
-    input, select {
-      width: 90%;
-      padding: 12px;
-      margin: 10px;
-      border-radius: 5px;
-      border: none;
-      font-size: 14px;
-    }
+        input, select {
+            width: 90%;
+            padding: 12px;
+            margin: 10px;
+            border-radius: 5px;
+            border: none;
+            font-size: 14px;
+        }
 
-    button {
-      padding: 10px 20px;
-      background: #22c55e;
-      border: none;
-      color: white;
-      border-radius: 5px;
-      cursor: pointer;
-      margin: 5px;
-      font-size: 14px;
-    }
+        button {
+            padding: 10px 20px;
+            background: #22c55e;
+            border: none;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
 
-    button:hover {
-      background: #16a34a;
-    }
+        button:hover {
+            background: #16a34a;
+        }
 
-    #result {
-      margin-top: 20px;
-      white-space: pre-wrap;
-      text-align: left;
-      font-size: 14px;
-    }
-
-    @media (max-width: 500px) {
-      .box {
-        width: 95%;
-      }
-    }
-  </style>
+        #result {
+            margin-top: 20px;
+            white-space: pre-wrap;
+            text-align: left;
+            font-size: 14px;
+        }
+    </style>
 </head>
 
 <body>
 
-<h1>🚀 AI Marketing SaaS</h1>
+<h1>🚀 AI Marketing Generator</h1>
 
 <div class="box">
 
-  <input type="text" id="product" placeholder="Enter Product" />
-  <input type="text" id="audience" placeholder="Enter Target Audience" />
+    <input type="text" id="product" placeholder="Enter Product" />
+    <input type="text" id="audience" placeholder="Enter Target Audience" />
 
-  <select id="platform">
-    <option value="instagram">Instagram</option>
-    <option value="youtube_short">YouTube Shorts</option>
-    <option value="youtube_long">YouTube Long</option>
-    <option value="facebook_ads">Facebook Ads</option>
-    <option value="google_ads">Google Ads</option>
-    <option value="all">All Platforms 🚀</option>
-  </select>
+    <select id="platform">
+        <option value="instagram">Instagram</option>
+        <option value="facebook_ads">Facebook Ads</option>
+        <option value="google_ads">Google Ads</option>
+        <option value="youtube_short">YouTube Shorts</option>
+        <option value="youtube_long">YouTube Long</option>
+        <option value="all">All Platforms 🚀</option>
+    </select>
 
-  <br>
+    <br>
 
-  <button onclick="generate()">Generate</button>
-  <button onclick="downloadPDF()">Download PDF</button>
+    <button onclick="generate()">Generate</button>
+    <button onclick="downloadPDF()">Download PDF</button>
 
-  <div id="result"></div>
+    <div id="result"></div>
 
 </div>
 
 <script>
+
 async function generate() {
     const product = document.getElementById("product").value;
     const audience = document.getElementById("audience").value;
@@ -147,6 +142,13 @@ async function generate() {
         resultDiv.innerHTML = "❌ Server error. Try again.";
     }
 }
+
+
+function downloadPDF() {
+    const element = document.getElementById("result");
+    html2pdf().from(element).save("marketing-plan.pdf");
+}
+
 </script>
 
 </body>
