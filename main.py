@@ -5,13 +5,10 @@ from dotenv import load_dotenv
 from groq import Groq
 from fastapi.middleware.cors import CORSMiddleware
 
-# Load env variables FIRST
 load_dotenv()
 
-# Create app FIRST
 app = FastAPI()
 
-# Add middleware AFTER app creation
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -20,40 +17,47 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Groq client AFTER env load
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-# Request schema
 class RequestData(BaseModel):
     product: str
     audience: str
+    platform: str
 
-# Test route
+
 @app.get("/")
 def home():
-    return {"message": "API Running 🚀"}
+    return {"message": "AI Marketing SaaS Running 🚀"}
 
-# Main route
+
 @app.post("/generate")
 def generate(data: RequestData):
     try:
         prompt = f"""
-Create a marketing campaign.
+You are an AI Marketing Expert.
+
+Create a COMPLETE marketing plan.
 
 Product: {data.product}
 Target Audience: {data.audience}
+Platform: {data.platform}
 
-Give:
-1. Strategy
-2. 3 Captions
-3. 5 Hashtags
+Give output in clean structured format:
+
+1. 🎯 Strategy
+2. 🧠 Psychological Hook Idea
+3. ✍️ 5 Viral Captions (very engaging & curiosity-based)
+4. 🔥 Top 5 Trending Hashtags
+5. 📢 Campaign Plan (step-by-step)
+6. ⚠️ Do's and Don'ts
+7. 💬 Pin Comment (to increase engagement)
+8. ⚖️ Disclaimer (if needed)
+9. 🚀 Motivation Tips for consistency
 """
 
         response = client.chat.completions.create(
             model="llama-3.1-8b-instant",
-            messages=[
-                {"role": "user", "content": prompt}
-            ]
+            messages=[{"role": "user", "content": prompt}]
         )
 
         return {
