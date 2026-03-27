@@ -81,22 +81,35 @@ def ai_generate(prompt):
 # AUTH ROUTES
 # =========================
 @app.post("/signup")
-def signup(user: User):
+def signup(data: dict):
+    username = data.get("username")
+    password = data.get("password")
+
     try:
-        cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (user.username, user.password))
+        cursor.execute(
+            "INSERT INTO users (username, password) VALUES (?, ?)",
+            (username, password)
+        )
         conn.commit()
-        return {"message": "User created"}
+        return {"message": "Signup successful"}
     except:
-        raise HTTPException(status_code=400, detail="User already exists")
+        return {"error": "User already exists"}
 
 @app.post("/login")
-def login(user: User):
-    cursor.execute("SELECT * FROM users WHERE username=? AND password=?", (user.username, user.password))
-    result = cursor.fetchone()
-    if result:
-        return {"message": "Login success"}
+def login(data: dict):
+    username = data.get("username")
+    password = data.get("password")
+
+    cursor.execute(
+        "SELECT * FROM users WHERE username=? AND password=?",
+        (username, password)
+    )
+    user = cursor.fetchone()
+
+    if user:
+        return {"message": "Login successful"}
     else:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        return {"error": "Invalid login"}
 
 # =========================
 # AGENTS
