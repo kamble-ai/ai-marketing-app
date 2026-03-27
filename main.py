@@ -179,43 +179,56 @@ Include SEO, titles, strategy.
 # GENERATE ROUTE
 # =========================
 @app.post("/generate")
-def generate(data: GenerateRequest):
+async def generate(data: dict):
+    try:
+        product = data.get("product")
+        audience = data.get("audience")
+        platform = data.get("platform")
+        username = data.get("username")
 
-    product = data.product
-    audience = data.audience
-    platform = data.platform.lower()
-    username = data.username
+        if not product or not audience or not platform:
+            return {"error": "Missing input"}
 
-    if platform == "instagram":
-        result = instagram_agent(product, audience)
-    elif platform == "facebook ads":
-        result = facebook_agent(product, audience)
-    elif platform == "google ads":
-        result = google_agent(product, audience)
-    elif platform == "youtube shorts":
-        result = youtube_short_agent(product, audience)
-    elif platform == "youtube long":
-        result = youtube_long_agent(product, audience)
-    elif platform == "all":
-        result = "\n\n".join([
-            instagram_agent(product, audience),
-            facebook_agent(product, audience),
-            google_agent(product, audience),
-            youtube_short_agent(product, audience),
-            youtube_long_agent(product, audience),
-        ])
-    else:
-        raise HTTPException(status_code=400, detail="Invalid platform")
+        platform = platform.lower()
 
-    # SAVE HISTORY
-    cursor.execute(
-        "INSERT INTO history (username, product, audience, platform, result) VALUES (?, ?, ?, ?, ?)",
-        (username, product, audience, platform, result)
-    )
-    conn.commit()
+        if platform == "instagram":
+            result = instagram_agent(product, audience)
 
-    return {"campaign": result}
+        elif platform == "facebook ads":
+            result = facebook_agent(product, audience)
 
+        elif platform == "google ads":
+            result = google_agent(product, audience)
+
+        elif platform == "youtube shorts":
+            result = youtube_short_agent(product, audience)
+
+        elif platform == "youtube long":
+            result = youtube_long_agent(product, audience)
+
+        elif platform == "all":
+            result = "\n\n".join([
+                instagram_agent(product, audience),
+                facebook_agent(product, audience),
+                google_agent(product, audience),
+                youtube_short_agent(product, audience),
+                youtube_long_agent(product, audience)
+            ])
+        else:
+            return {"error": "Invalid platform"}
+
+        # SAVE HISTORY
+        cursor.execute(
+            "INSERT INTO history (username, product, audience, platform, result) VALUES (?, ?, ?, ?, ?)",
+            (username, product, audience, platform, result)
+        )
+        conn.commit()
+
+        return {"campaign": result}
+
+    except Exception as e:
+        print("ERROR:", e)
+        return {"error": str(e)}
 # =========================
 # HISTORY ROUTE
 # =========================
