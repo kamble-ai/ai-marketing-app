@@ -1,52 +1,72 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>AI Marketing SaaS</title>
+  <title>AI Marketing SaaS</title>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- PDF Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
-    <style>
-        body {
-            font-family: Arial;
-            background: #0f172a;
-            color: white;
-            text-align: center;
-            margin-top: 40px;
-        }
+  <style>
+    body {
+      font-family: Arial;
+      background: #0f172a;
+      color: white;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+    }
 
-        .box {
-            background: #1e293b;
-            padding: 25px;
-            border-radius: 10px;
-            width: 90%;
-            max-width: 400px;
-            margin: auto;
-        }
+    h1 {
+      margin-bottom: 20px;
+    }
 
-        input, select {
-            width: 90%;
-            padding: 10px;
-            margin: 10px;
-            border-radius: 5px;
-            border: none;
-        }
+    .box {
+      background: #1e293b;
+      padding: 25px;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 420px;
+      margin: auto;
+      box-shadow: 0 0 20px rgba(0,0,0,0.4);
+    }
 
-        button {
-            padding: 10px 20px;
-            background: #22c55e;
-            border: none;
-            color: white;
-            border-radius: 5px;
-            cursor: pointer;
-            margin: 5px;
-        }
+    input, select {
+      width: 90%;
+      padding: 12px;
+      margin: 10px;
+      border-radius: 5px;
+      border: none;
+      font-size: 14px;
+    }
 
-        #result {
-            margin-top: 20px;
-            white-space: pre-wrap;
-            text-align: left;
-        }
-    </style>
+    button {
+      padding: 10px 20px;
+      background: #22c55e;
+      border: none;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+      font-size: 14px;
+    }
+
+    button:hover {
+      background: #16a34a;
+    }
+
+    #result {
+      margin-top: 20px;
+      white-space: pre-wrap;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    @media (max-width: 500px) {
+      .box {
+        width: 95%;
+      }
+    }
+  </style>
 </head>
 
 <body>
@@ -54,63 +74,82 @@
 <h1>🚀 AI Marketing SaaS</h1>
 
 <div class="box">
-    <input type="text" id="product" placeholder="Enter Product" />
-    <input type="text" id="audience" placeholder="Enter Target Audience" />
 
-    <select id="platform">
-        <option>Instagram</option>
-        <option>YouTube Shorts</option>
-        <option>YouTube Long</option>
-        <option>Facebook Ads</option>
-        <option>Google Ads</option>
-    </select>
+  <input type="text" id="product" placeholder="Enter Product" />
+  <input type="text" id="audience" placeholder="Enter Target Audience" />
 
-    <br>
+  <select id="platform">
+    <option value="instagram">Instagram</option>
+    <option value="youtube_short">YouTube Shorts</option>
+    <option value="youtube_long">YouTube Long</option>
+    <option value="facebook_ads">Facebook Ads</option>
+    <option value="google_ads">Google Ads</option>
+    <option value="all">All Platforms 🚀</option>
+  </select>
 
-    <button onclick="generate()">Generate</button>
-    <button onclick="downloadPDF()">Download PDF</button>
+  <br>
 
-    <div id="result"></div>
+  <button onclick="generate()">Generate</button>
+  <button onclick="downloadPDF()">Download PDF</button>
+
+  <div id="result"></div>
+
 </div>
 
 <script>
 async function generate() {
-    const product = document.getElementById("product").value;
-    const audience = document.getElementById("audience").value;
-    const platform = document.getElementById("platform").value;
+  const product = document.getElementById("product").value;
+  const audience = document.getElementById("audience").value;
+  const platform = document.getElementById("platform").value;
 
-    const resultDiv = document.getElementById("result");
-    resultDiv.innerHTML = "⏳ Generating...";
+  const resultDiv = document.getElementById("result");
 
-    try {
-        const response = await fetch("https://ai-marketing-app-pfx2.onrender.com/generate", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                product: product,
-                audience: audience,
-                platform: platform
-            })
-        });
+  if (!product || !audience) {
+    resultDiv.innerHTML = "⚠️ Please fill all fields";
+    return;
+  }
 
-        const data = await response.json();
+  resultDiv.innerHTML = "⏳ Generating... Please wait";
 
-        if (data.campaign) {
-            resultDiv.innerHTML = data.campaign;
-        } else {
-            resultDiv.innerHTML = "❌ Error: " + data.error;
-        }
+  try {
+    const response = await fetch("https://ai-marketing-app-pfx2.onrender.com/generate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        product,
+        audience,
+        platform
+      })
+    });
 
-    } catch (error) {
-        resultDiv.innerHTML = "❌ Server Error";
+    if (!response.ok) {
+      throw new Error("API Error");
     }
+
+    const data = await response.json();
+
+    if (data.campaign) {
+      resultDiv.innerHTML = data.campaign;
+    } else {
+      resultDiv.innerHTML = "⚠️ No response from AI";
+    }
+
+  } catch (error) {
+    resultDiv.innerHTML = "⏳ Server waking up... Try again in 10 seconds";
+  }
 }
 
 function downloadPDF() {
-    const element = document.getElementById("result");
-    html2pdf().from(element).save("marketing-plan.pdf");
+  const element = document.getElementById("result");
+
+  if (!element.innerText.trim()) {
+    alert("Generate content first!");
+    return;
+  }
+
+  html2pdf().from(element).save("marketing-plan.pdf");
 }
 </script>
 
