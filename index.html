@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Marketing Generator</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #0f172a;
+            color: white;
+            text-align: center;
+            margin-top: 100px;
+        }
+
+        .box {
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 10px;
+            width: 350px;
+            margin: auto;
+        }
+
+        input {
+            width: 90%;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 5px;
+            border: none;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #22c55e;
+            border: none;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #result {
+            margin-top: 20px;
+            white-space: pre-wrap;
+            text-align: left;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>🚀 AI Marketing Generator</h1>
+
+    <div class="box">
+        <input type="text" id="product" placeholder="Enter Product" />
+        <input type="text" id="audience" placeholder="Enter Audience" />
+        <br>
+        <button onclick="generate()">Generate</button>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        async function generate() {
+            const product = document.getElementById("product").value;
+            const audience = document.getElementById("audience").value;
+
+            const resultDiv = document.getElementById("result");
+            resultDiv.innerHTML = "⏳ Generating...";
+
+            try {
+                const response = await fetch("http://127.0.0.1:8000/generate", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        product: product,
+                        audience: audience
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.campaign) {
+                    resultDiv.innerHTML = data.campaign;
+                } else {
+                    resultDiv.innerHTML = "❌ Error: " + data.error;
+                }
+
+            } catch (error) {
+                resultDiv.innerHTML = "❌ Server not running!";
+            }
+        }
+    </script>
+
+</body>
+</html>
