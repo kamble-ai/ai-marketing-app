@@ -15,7 +15,7 @@ app.add_middleware(
 # Root check
 @app.get("/")
 def home():
-    return {"message": "AI SaaS Multi-Agent Running 🚀"}
+    return FileResponse("index.html")
 
 
 # =========================
