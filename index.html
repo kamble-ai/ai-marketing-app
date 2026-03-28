@@ -34,10 +34,19 @@ button {
     cursor:pointer;
 }
 
+button:hover {
+    opacity:0.9;
+}
+
 #result {
     background:#f1f5f9;
     padding:10px;
     margin-top:10px;
+}
+
+.loading {
+    color:blue;
+    font-weight:bold;
 }
 </style>
 </head>
@@ -68,7 +77,7 @@ button {
 
 <button onclick="signup()">Signup</button>
 
-<p><a onclick="showLogin()">Already signed? Login</a></p>
+<p style="cursor:pointer;color:blue" onclick="showLogin()">Already signed? Login</p>
 </div>
 
 
@@ -81,14 +90,14 @@ button {
 
 <button onclick="login()">Login</button>
 
-<p><a onclick="showSignup()">New user? Signup</a></p>
+<p style="cursor:pointer;color:blue" onclick="showSignup()">New user? Signup</p>
 </div>
 
 
 <!-- APP -->
 <div id="appPage" style="display:none">
 
-<h3>Welcome <span id="userDisplay"></span></h3>
+<h3>Welcome 👋</h3>
 
 <input id="product" placeholder="Product">
 <input id="audience" placeholder="Audience">
@@ -103,6 +112,7 @@ button {
 </select>
 
 <button onclick="generate()">Generate</button>
+<button onclick="loadHistory()">History</button>
 <button onclick="logout()">Logout</button>
 
 <div id="result"></div>
@@ -114,6 +124,9 @@ button {
 
 <script>
 
+// =========================
+// PAGE SWITCH
+// =========================
 function showSignup(){
     signupPage.style.display="block";
     loginPage.style.display="none";
@@ -126,84 +139,165 @@ function showLogin(){
     appPage.style.display="none";
 }
 
-function showApp(user){
+function showApp(){
     signupPage.style.display="none";
     loginPage.style.display="none";
     appPage.style.display="block";
-    userDisplay.innerText=user;
 }
 
+// =========================
 // SIGNUP
+// =========================
 async function signup(){
+    try{
+        const res = await fetch("/signup",{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({
+                first_name:firstName.value,
+                last_name:lastName.value,
+                gender:gender.value,
+                dob:dob.value,
+                username:signupUsername.value,
+                password:signupPassword.value,
+                confirm_password:confirmPassword.value
+            })
+        });
 
-    const res = await fetch("/signup",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-            first_name:firstName.value,
-            last_name:lastName.value,
-            gender:gender.value,
-            dob:dob.value,
-            username:signupUsername.value,
-            password:signupPassword.value,
-            confirm_password:confirmPassword.value
-        })
-    });
+        const d = await res.json();
 
-    const d = await res.json();
-    alert(d.message || d.error);
+        alert(d.message || d.error || "Signup failed");
 
-    if(d.message) showLogin();
+        if(d.message){
+            showLogin();
+        }
+
+    }catch(err){
+        alert("❌ Signup error");
+        console.log(err);
+    }
 }
 
-// LOGIN
+// =========================
+// LOGIN (JWT)
+// =========================
 async function login(){
+    try{
+        const res = await fetch("/login",{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({
+                username:loginUsername.value,
+                password:loginPassword.value
+            })
+        });
 
-    const res = await fetch("/login",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-            username:loginUsername.value,
-            password:loginPassword.value
-        })
-    });
+        const d = await res.json();
 
-    const d = await res.json();
+        if(d.token){
+            localStorage.setItem("token", d.token);
+            showApp();
+        } else {
+            alert(d.error || "Login failed");
+        }
 
-    if(d.message){
-        localStorage.setItem("user",loginUsername.value);
-        showApp(loginUsername.value);
-    } else alert(d.error);
+    }catch(err){
+        alert("❌ Login error");
+        console.log(err);
+    }
 }
 
-// GENERATE
+// =========================
+// GENERATE (SECURE)
+// =========================
 async function generate(){
 
-    const res = await fetch("/generate",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-            username:localStorage.getItem("user"),
-            product:product.value,
-            audience:audience.value,
-            platform:platform.value
-        })
-    });
+    const token = localStorage.getItem("token");
 
-    const d = await res.json();
-    result.innerText = d.campaign;
+    if(!token){
+        alert("Please login again");
+        return;
+    }
+
+    result.innerHTML = "<p class='loading'>⏳ Generating...</p>";
+
+    try{
+        const res = await fetch("/generate",{
+            method:"POST",
+            headers:{
+                "Content-Type":"application/json",
+                "Authorization":"Bearer " + token
+            },
+            body:JSON.stringify({
+                product:product.value,
+                audience:audience.value,
+                platform:platform.value
+            })
+        });
+
+        const d = await res.json();
+
+        if(d.campaign){
+            result.innerText = d.campaign;
+        } else {
+            result.innerText = d.detail || "Error generating";
+        }
+
+    }catch(err){
+        result.innerText = "❌ Error";
+        console.log(err);
+    }
 }
 
+// =========================
+// HISTORY (SECURE)
+// =========================
+async function loadHistory(){
+
+    const token = localStorage.getItem("token");
+
+    try{
+        const res = await fetch("/history",{
+            headers:{
+                "Authorization":"Bearer " + token
+            }
+        });
+
+        const d = await res.json();
+
+        if(!d.history){
+            history.innerText = "No history";
+            return;
+        }
+
+        history.innerHTML = "<h3>History</h3>" +
+            d.history.map(h => `
+            <div style="border:1px solid #ccc;margin:10px;padding:10px">
+                <b>${h.platform}</b><br>
+                ${h.product} → ${h.audience}
+            </div>
+            `).join("");
+
+    }catch(err){
+        history.innerText = "❌ Error loading history";
+        console.log(err);
+    }
+}
+
+// =========================
 // LOGOUT
+// =========================
 function logout(){
-    localStorage.removeItem("user");
+    localStorage.removeItem("token");
     location.reload();
 }
 
+// =========================
 // AUTO LOAD
+// =========================
 window.onload = ()=>{
-    const user = localStorage.getItem("user");
-    if(user) showApp(user);
+    const token = localStorage.getItem("token");
+    if(token) showApp();
     else showSignup();
 }
 
