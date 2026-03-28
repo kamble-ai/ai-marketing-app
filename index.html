@@ -6,92 +6,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <style>
-body {
-    font-family: Arial;
-    background: linear-gradient(135deg, #000000, #0f172a);
-    color: white;
-    text-align: center;
-    padding: 20px;
-}
-
-/* CARD */
-.box {
-    background: white;
-    color: black;
-    padding: 25px;
-    border-radius: 12px;
-    max-width: 480px;
-    margin: auto;
-    box-shadow: 0 0 25px rgba(0,0,0,0.6);
-}
-
-/* INPUT */
-input, select {
-    width: 90%;
-    padding: 12px;
-    margin: 10px;
-    border: 2px solid black;
-    border-radius: 6px;
-}
-
-/* BUTTON */
-button {
-    padding: 10px 18px;
-    background: #22c55e;
-    border: none;
-    color: white;
-    cursor: pointer;
-    margin: 5px;
-    border-radius: 6px;
-    font-weight: bold;
-}
-
-button:hover {
-    background: #16a34a;
-}
-
-/* RESULT BOX */
-#result {
-    margin-top: 20px;
-    text-align: left;
-    background: #f8fafc;
-    color: black;
-    padding: 15px;
-    border-radius: 8px;
-    line-height: 1.6;
-}
-
-/* HISTORY CARD */
-.card {
-    background: #f1f5f9;
-    padding: 10px;
-    border-radius: 8px;
-    margin-bottom: 10px;
-}
-
-/* SPINNER */
-.loader {
-    border: 5px solid #f3f3f3;
-    border-top: 5px solid #22c55e;
-    border-radius: 50%;
-    width: 30px;
-    height: 30px;
-    animation: spin 1s linear infinite;
-    margin: auto;
-}
-
-@keyframes spin {
-    100% { transform: rotate(360deg); }
-}
-
-.copy-btn {
-    background: #2563eb;
-}
-
-.copy-btn:hover {
-    background: #1d4ed8;
-}
-
+body { background:#0f172a; color:white; font-family:Arial; text-align:center;}
+.box { background:white; color:black; padding:20px; border-radius:10px; max-width:500px; margin:auto;}
+input,select { width:90%; padding:10px; margin:8px;}
+button { padding:10px; background:green; color:white; border:none; margin:5px;}
+.loader { border:5px solid #ccc; border-top:5px solid green; border-radius:50%; width:30px; height:30px; animation:spin 1s linear infinite;}
+@keyframes spin {100%{transform:rotate(360deg)}}
 </style>
 </head>
 
@@ -101,175 +21,131 @@ button:hover {
 
 <div class="box">
 
-<!-- LOGIN -->
-<div id="auth">
-    <input id="username" placeholder="Username">
-    <input id="password" type="password" placeholder="Password">
+<h3>Signup</h3>
+<input id="firstName" placeholder="First Name">
+<input id="lastName" placeholder="Last Name">
+<select id="gender">
+<option>Male</option><option>Female</option>
+</select>
+<input id="dob" type="date">
+<input id="username" placeholder="Username">
+<input id="password" type="password">
+<input id="confirmPassword" type="password">
 
-    <button onclick="signup()">Signup</button>
-    <button onclick="login()">Login</button>
-</div>
+<button onclick="signup()">Signup</button>
+<p id="msg"></p>
 
-<!-- APP -->
+<hr>
+
+<h3>Login</h3>
+<input id="loginUsername" placeholder="Username">
+<input id="loginPassword" type="password">
+<button onclick="login()">Login</button>
+
 <div id="app" style="display:none">
 
-    <h3>Welcome <span id="userDisplay"></span></h3>
+<h3>Welcome <span id="user"></span></h3>
 
-    <input id="product" placeholder="Enter Product">
-    <input id="audience" placeholder="Target Audience">
+<input id="product" placeholder="Product">
+<input id="audience" placeholder="Audience">
 
-    <select id="platform">
-        <option value="instagram">Instagram</option>
-        <option value="facebook ads">Facebook Ads</option>
-        <option value="google ads">Google Ads</option>
-        <option value="youtube shorts">YouTube Shorts</option>
-        <option value="youtube long">YouTube Long</option>
-        <option value="all">All Platforms</option>
-    </select>
+<select id="platform">
+<option>instagram</option>
+<option>facebook ads</option>
+<option>google ads</option>
+<option>youtube shorts</option>
+<option>youtube long</option>
+<option>all</option>
+</select>
 
-    <br>
+<button onclick="generate()">Generate</button>
+<button onclick="copyText()">Copy</button>
+<button onclick="downloadPDF()">PDF</button>
+<button onclick="loadHistory()">History</button>
 
-    <button onclick="generate()">Generate</button>
-    <button onclick="downloadPDF()">Download PDF</button>
-    <button onclick="copyText()" class="copy-btn">Copy</button>
-    <button onclick="loadHistory()">History</button>
-    <button onclick="logout()">Logout</button>
-
-    <div id="result"></div>
-    <div id="history"></div>
+<div id="result"></div>
+<div id="history"></div>
 
 </div>
 
 </div>
 
 <script>
-let currentUser = localStorage.getItem("user");
 
-if (currentUser) showApp(currentUser);
+let user = localStorage.getItem("user");
+if(user) showApp(user);
 
-// LOGIN
-async function signup() {
-    const username = usernameVal();
-    const password = passwordVal();
+async function signup(){
+let data = {
+first_name:firstName.value,
+last_name:lastName.value,
+gender:gender.value,
+dob:dob.value,
+username:username.value,
+password:password.value,
+confirm_password:confirmPassword.value
+};
 
-    await fetch("/signup", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({username, password})
-    });
-
-    alert("Signup success");
+let res = await fetch("/signup",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
+let d = await res.json();
+msg.innerText = d.message || d.error;
 }
 
-async function login() {
-    const username = usernameVal();
-    const password = passwordVal();
+async function login(){
+let res = await fetch("/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+username:loginUsername.value,
+password:loginPassword.value
+})});
 
-    const res = await fetch("/login", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({username, password})
-    });
+let d = await res.json();
 
-    if (res.ok) {
-        localStorage.setItem("user", username);
-        showApp(username);
-    } else alert("Invalid login");
+if(d.message){
+localStorage.setItem("user", loginUsername.value);
+showApp(loginUsername.value);
+}else alert("Wrong login");
 }
 
-function logout() {
-    localStorage.removeItem("user");
-    location.reload();
+function showApp(u){
+app.style.display="block";
+user=u;
+document.getElementById("user").innerText=u;
 }
 
-function showApp(username) {
-    document.getElementById("auth").style.display = "none";
-    document.getElementById("app").style.display = "block";
-    document.getElementById("userDisplay").innerText = username;
-    currentUser = username;
+async function generate(){
+result.innerHTML="<div class='loader'></div>";
+
+let res = await fetch("/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+username:user,
+product:product.value,
+audience:audience.value,
+platform:platform.value
+})});
+
+let d = await res.json();
+result.innerText=d.campaign;
 }
 
-function usernameVal(){ return document.getElementById("username").value }
-function passwordVal(){ return document.getElementById("password").value }
-
-// FORMAT TEXT
-function formatText(text) {
-    return text
-        .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
-        .replace(/\n/g, "<br>")
-        .replace(/\* /g, "• ");
+function copyText(){
+navigator.clipboard.writeText(result.innerText);
+alert("Copied");
 }
 
-// GENERATE
-async function generate() {
-    const product = document.getElementById("product").value;
-    const audience = document.getElementById("audience").value;
-    const platform = document.getElementById("platform").value;
-
-    const resultDiv = document.getElementById("result");
-
-    // SPINNER
-    resultDiv.innerHTML = `<div class="loader"></div>`;
-
-    try {
-        const res = await fetch("/generate", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({
-                username: currentUser,
-                product,
-                audience,
-                platform
-            })
-        });
-
-        const data = await res.json();
-        resultDiv.innerHTML = formatText(data.campaign || "Error");
-
-    } catch {
-        resultDiv.innerHTML = "❌ Server error";
-    }
+function downloadPDF(){
+html2pdf().from(result).save();
 }
 
-// COPY
-function copyText() {
-    const text = document.getElementById("result").innerText;
-    navigator.clipboard.writeText(text);
-    alert("Copied!");
+async function loadHistory(){
+let res = await fetch("/history/"+user);
+let d = await res.json();
+
+let html="";
+d.history.forEach(i=>{
+html+=`<div><b>${i[0]}</b> (${i[1]})<br>${i[2]}</div><hr>`;
+});
+
+history.innerHTML=html;
 }
 
-// HISTORY (CARD UI)
-async function loadHistory() {
-    const res = await fetch(`/history/${currentUser}`);
-    const data = await res.json();
-
-    let html = "<h3>History</h3>";
-
-    data.history.forEach(item => {
-        html += `
-        <div class="card">
-            <b>${item[0]}</b> (${item[2]})
-            <div>${formatText(item[3])}</div>
-        </div>`;
-    });
-
-    document.getElementById("history").innerHTML = html;
-}
-
-// PDF (STYLED)
-function downloadPDF() {
-    const element = document.getElementById("result");
-
-    const opt = {
-        margin: 0.5,
-        filename: 'marketing-plan.pdf',
-        image: { type: 'jpeg', quality: 1 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
-    };
-
-    html2pdf().set(opt).from(element).save();
-}
 </script>
 
 </body>
