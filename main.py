@@ -7,7 +7,7 @@ import sqlite3
 from dotenv import load_dotenv
 
 # =========================
-# DATABASE
+# DB
 # =========================
 conn = sqlite3.connect("app.db", check_same_thread=False)
 cursor = conn.cursor()
@@ -38,13 +38,13 @@ CREATE TABLE IF NOT EXISTS history (
 conn.commit()
 
 # =========================
-# ENV + GROQ
+# ENV
 # =========================
 load_dotenv()
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 # =========================
-# FASTAPI
+# APP
 # =========================
 app = FastAPI()
 
@@ -60,29 +60,24 @@ app.add_middleware(
 # AI FUNCTION
 # =========================
 def ai_generate(prompt):
-    models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
-
-    for model in models:
-        try:
-            res = client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            return res.choices[0].message.content
-        except Exception as e:
-            print(model, "failed", e)
-
-    return "❌ AI failed"
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message.content
+    except:
+        return "❌ AI Error"
 
 # =========================
 # AUTH
 # =========================
 @app.post("/signup")
 def signup(data: dict):
-    if data["password"] != data["confirm_password"]:
-        return {"error": "Passwords do not match"}
-
     try:
+        if data["password"] != data["confirm_password"]:
+            return {"error": "Passwords do not match"}
+
         cursor.execute("""
         INSERT INTO users (first_name, last_name, gender, dob, username, password)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -94,91 +89,51 @@ def signup(data: dict):
             data["username"],
             data["password"]
         ))
+
         conn.commit()
         return {"message": "Account created successfully"}
+
     except:
-        return {"error": "Username already exists"}
+        return {"error": "User already exists"}
+
 
 @app.post("/login")
 def login(data: dict):
-    cursor.execute(
-        "SELECT * FROM users WHERE username=? AND password=?",
-        (data["username"], data["password"])
-    )
-    if cursor.fetchone():
+
+    cursor.execute("""
+    SELECT * FROM users WHERE username=? AND password=?
+    """, (data["username"], data["password"]))
+
+    user = cursor.fetchone()
+
+    if user:
         return {"message": "Login successful"}
-    return {"error": "Invalid login"}
+    else:
+        return {"error": "Invalid credentials"}
+
 
 # =========================
 # AGENTS
 # =========================
-def instagram_agent(p, a):
-    return ai_generate(f"""
-Create a HIGH-CONVERTING Instagram marketing plan.
+def build_prompt(platform, product, audience):
+    return f"""
+Create a HIGH-CONVERTING {platform} marketing plan.
 
-Product: {p}
-Audience: {a}
+Product: {product}
+Audience: {audience}
 
 Give:
 1. Strategy
-2. Content Plan
-3. Growth Plan
-4. Captions
+2. Growth Plan
+3. Do's & Don'ts
+4. 5 Captions
 5. Hashtags
 6. CTA
-""")
+"""
 
-def facebook_agent(p, a):
-    return ai_generate(f"""
-Create Facebook Ads strategy.
+def run_agent(platform, product, audience):
+    return ai_generate(build_prompt(platform, product, audience))
 
-Product: {p}
-Audience: {a}
-
-Include targeting, ad copy, headlines, budget, CTA.
-""")
-
-def google_agent(p, a):
-    return ai_generate(f"""
-Create Google Ads campaign.
-
-Product: {p}
-Audience: {a}
-
-Include keywords, headlines, SEO, bidding strategy.
-""")
-
-def youtube_short_agent(p, a):
-    return ai_generate(f"""
-Create YouTube Shorts strategy.
-
-Product: {p}
-Audience: {a}
-
-Include hook, script, captions, hashtags.
-""")
-
-def youtube_long_agent(p, a):
-    return ai_generate(f"""
-Create YouTube long video plan.
-
-Product: {p}
-Audience: {a}
-
-Include SEO title, script, thumbnail idea.
-""")
-
-def all_platform_agent(p, a):
-    return ai_generate(f"""
-Create COMPLETE marketing strategy.
-
-Product: {p}
-Audience: {a}
-
-Include:
-Instagram + Facebook + Google + YouTube
-+ Content calendar + Growth strategy
-""")
 
 # =========================
 # GENERATE
@@ -186,44 +141,45 @@ Instagram + Facebook + Google + YouTube
 @app.post("/generate")
 def generate(data: dict):
 
-    p = data["product"]
-    a = data["audience"]
-    platform = data["platform"].lower()
-    u = data["username"]
+    product = data["product"]
+    audience = data["audience"]
+    platform = data["platform"]
+    username = data["username"]
 
-    if platform == "instagram":
-        result = instagram_agent(p, a)
-    elif platform == "facebook ads":
-        result = facebook_agent(p, a)
-    elif platform == "google ads":
-        result = google_agent(p, a)
-    elif platform == "youtube shorts":
-        result = youtube_short_agent(p, a)
-    elif platform == "youtube long":
-        result = youtube_long_agent(p, a)
-    elif platform == "all":
-        result = all_platform_agent(p, a)
+    if platform == "all":
+        platforms = [
+            "Instagram", "Facebook Ads",
+            "Google Ads", "YouTube Shorts", "YouTube Long"
+        ]
+        result = "\n\n".join([
+            run_agent(p, product, audience) for p in platforms
+        ])
     else:
-        return {"error": "Invalid platform"}
+        result = run_agent(platform, product, audience)
 
-    cursor.execute(
-        "INSERT INTO history (username, product, audience, platform, result) VALUES (?, ?, ?, ?, ?)",
-        (u, p, a, platform, result)
-    )
+    cursor.execute("""
+    INSERT INTO history (username, product, audience, platform, result)
+    VALUES (?, ?, ?, ?, ?)
+    """, (username, product, audience, platform, result))
+
     conn.commit()
 
     return {"campaign": result}
+
 
 # =========================
 # HISTORY
 # =========================
 @app.get("/history/{username}")
 def history(username: str):
-    cursor.execute(
-        "SELECT product, platform, result FROM history WHERE username=?",
-        (username,)
-    )
-    return {"history": cursor.fetchall()}
+
+    cursor.execute("""
+    SELECT product, audience, platform, result FROM history WHERE username=?
+    """, (username,))
+
+    data = cursor.fetchall()
+    return {"history": data}
+
 
 # =========================
 # FRONTEND

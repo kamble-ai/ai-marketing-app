@@ -1,17 +1,44 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>AI Marketing SaaS</title>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<title>AI Marketing Generator</title>
 
 <style>
-body { background:#0f172a; color:white; font-family:Arial; text-align:center;}
-.box { background:white; color:black; padding:20px; border-radius:10px; max-width:500px; margin:auto;}
-input,select { width:90%; padding:10px; margin:8px;}
-button { padding:10px; background:green; color:white; border:none; margin:5px;}
-.loader { border:5px solid #ccc; border-top:5px solid green; border-radius:50%; width:30px; height:30px; animation:spin 1s linear infinite;}
-@keyframes spin {100%{transform:rotate(360deg)}}
+body {
+    font-family: Arial;
+    background: linear-gradient(135deg,#000,#0f172a);
+    color:white;
+    text-align:center;
+}
+
+.box {
+    background:white;
+    color:black;
+    padding:20px;
+    border-radius:10px;
+    max-width:450px;
+    margin:auto;
+}
+
+input,select {
+    width:90%;
+    padding:10px;
+    margin:10px;
+}
+
+button {
+    padding:10px;
+    background:green;
+    color:white;
+    border:none;
+    cursor:pointer;
+}
+
+#result {
+    background:#f1f5f9;
+    padding:10px;
+    margin-top:10px;
+}
 </style>
 </head>
 
@@ -21,47 +48,62 @@ button { padding:10px; background:green; color:white; border:none; margin:5px;}
 
 <div class="box">
 
-<h3>Signup</h3>
+<!-- SIGNUP -->
+<div id="signupPage">
+<h2>Signup</h2>
+
 <input id="firstName" placeholder="First Name">
 <input id="lastName" placeholder="Last Name">
+
 <select id="gender">
-<option>Male</option><option>Female</option>
+<option>Male</option>
+<option>Female</option>
 </select>
+
 <input id="dob" type="date">
-<input id="username" placeholder="Username">
-<input id="password" type="password">
-<input id="confirmPassword" type="password">
+
+<input id="signupUsername" placeholder="Username">
+<input id="signupPassword" type="password" placeholder="Password">
+<input id="confirmPassword" type="password" placeholder="Confirm Password">
 
 <button onclick="signup()">Signup</button>
-<p id="msg"></p>
 
-<hr>
+<p><a onclick="showLogin()">Already signed? Login</a></p>
+</div>
 
-<h3>Login</h3>
+
+<!-- LOGIN -->
+<div id="loginPage" style="display:none">
+<h2>Login</h2>
+
 <input id="loginUsername" placeholder="Username">
-<input id="loginPassword" type="password">
+<input id="loginPassword" type="password" placeholder="Password">
+
 <button onclick="login()">Login</button>
 
-<div id="app" style="display:none">
+<p><a onclick="showSignup()">New user? Signup</a></p>
+</div>
 
-<h3>Welcome <span id="user"></span></h3>
+
+<!-- APP -->
+<div id="appPage" style="display:none">
+
+<h3>Welcome <span id="userDisplay"></span></h3>
 
 <input id="product" placeholder="Product">
 <input id="audience" placeholder="Audience">
 
 <select id="platform">
-<option>instagram</option>
-<option>facebook ads</option>
-<option>google ads</option>
-<option>youtube shorts</option>
-<option>youtube long</option>
-<option>all</option>
+<option value="Instagram">Instagram</option>
+<option value="Facebook Ads">Facebook Ads</option>
+<option value="Google Ads">Google Ads</option>
+<option value="YouTube Shorts">YouTube Shorts</option>
+<option value="YouTube Long">YouTube Long</option>
+<option value="all">All</option>
 </select>
 
 <button onclick="generate()">Generate</button>
-<button onclick="copyText()">Copy</button>
-<button onclick="downloadPDF()">PDF</button>
-<button onclick="loadHistory()">History</button>
+<button onclick="logout()">Logout</button>
 
 <div id="result"></div>
 <div id="history"></div>
@@ -72,78 +114,97 @@ button { padding:10px; background:green; color:white; border:none; margin:5px;}
 
 <script>
 
-let user = localStorage.getItem("user");
-if(user) showApp(user);
+function showSignup(){
+    signupPage.style.display="block";
+    loginPage.style.display="none";
+    appPage.style.display="none";
+}
 
+function showLogin(){
+    signupPage.style.display="none";
+    loginPage.style.display="block";
+    appPage.style.display="none";
+}
+
+function showApp(user){
+    signupPage.style.display="none";
+    loginPage.style.display="none";
+    appPage.style.display="block";
+    userDisplay.innerText=user;
+}
+
+// SIGNUP
 async function signup(){
-let data = {
-first_name:firstName.value,
-last_name:lastName.value,
-gender:gender.value,
-dob:dob.value,
-username:username.value,
-password:password.value,
-confirm_password:confirmPassword.value
-};
 
-let res = await fetch("/signup",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
-let d = await res.json();
-msg.innerText = d.message || d.error;
+    const res = await fetch("/signup",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+            first_name:firstName.value,
+            last_name:lastName.value,
+            gender:gender.value,
+            dob:dob.value,
+            username:signupUsername.value,
+            password:signupPassword.value,
+            confirm_password:confirmPassword.value
+        })
+    });
+
+    const d = await res.json();
+    alert(d.message || d.error);
+
+    if(d.message) showLogin();
 }
 
+// LOGIN
 async function login(){
-let res = await fetch("/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-username:loginUsername.value,
-password:loginPassword.value
-})});
 
-let d = await res.json();
+    const res = await fetch("/login",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+            username:loginUsername.value,
+            password:loginPassword.value
+        })
+    });
 
-if(d.message){
-localStorage.setItem("user", loginUsername.value);
-showApp(loginUsername.value);
-}else alert("Wrong login");
+    const d = await res.json();
+
+    if(d.message){
+        localStorage.setItem("user",loginUsername.value);
+        showApp(loginUsername.value);
+    } else alert(d.error);
 }
 
-function showApp(u){
-app.style.display="block";
-user=u;
-document.getElementById("user").innerText=u;
-}
-
+// GENERATE
 async function generate(){
-result.innerHTML="<div class='loader'></div>";
 
-let res = await fetch("/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-username:user,
-product:product.value,
-audience:audience.value,
-platform:platform.value
-})});
+    const res = await fetch("/generate",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+            username:localStorage.getItem("user"),
+            product:product.value,
+            audience:audience.value,
+            platform:platform.value
+        })
+    });
 
-let d = await res.json();
-result.innerText=d.campaign;
+    const d = await res.json();
+    result.innerText = d.campaign;
 }
 
-function copyText(){
-navigator.clipboard.writeText(result.innerText);
-alert("Copied");
+// LOGOUT
+function logout(){
+    localStorage.removeItem("user");
+    location.reload();
 }
 
-function downloadPDF(){
-html2pdf().from(result).save();
-}
-
-async function loadHistory(){
-let res = await fetch("/history/"+user);
-let d = await res.json();
-
-let html="";
-d.history.forEach(i=>{
-html+=`<div><b>${i[0]}</b> (${i[1]})<br>${i[2]}</div><hr>`;
-});
-
-history.innerHTML=html;
+// AUTO LOAD
+window.onload = ()=>{
+    const user = localStorage.getItem("user");
+    if(user) showApp(user);
+    else showSignup();
 }
 
 </script>
