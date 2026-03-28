@@ -1,201 +1,312 @@
-from fastapi import FastAPI, HTTPException, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from groq import Groq
-from pymongo import MongoClient
-from passlib.context import CryptContext
-from jose import jwt
-import os
-from datetime import datetime, timedelta
+<!DOCTYPE html>
+<html>
+<head>
+<title>AI Marketing Generator</title>
 
-# =========================
-# ENV (RENDER SAFE)
-# =========================
-MONGO_URI = os.getenv("MONGO_URI")
-SECRET_KEY = os.getenv("SECRET_KEY")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+<style>
+body {
+    font-family: Arial;
+    background: linear-gradient(135deg,#000,#0f172a);
+    color:white;
+    text-align:center;
+}
 
-if not MONGO_URI or not SECRET_KEY or not GROQ_API_KEY:
-    raise Exception("Missing ENV variables")
+.box {
+    background:white;
+    color:black;
+    padding:20px;
+    border-radius:10px;
+    max-width:450px;
+    margin:auto;
+}
 
-# =========================
-# INIT CLIENTS
-# =========================
-client = Groq(api_key=GROQ_API_KEY)
+input,select {
+    width:90%;
+    padding:10px;
+    margin:10px;
+}
 
-# =========================
-# DB (FIXED FOR RENDER)
-# =========================
-try:
-    mongo_client = MongoClient(
-        MONGO_URI,
-        tls=True,
-        tlsAllowInvalidCertificates=True
-    )
-    mongo_client.admin.command('ping')
+button {
+    padding:10px;
+    background:green;
+    color:white;
+    border:none;
+    cursor:pointer;
+}
 
-    db = mongo_client["marketing_db"]
-    users_col = db["users"]
-    history_col = db["history"]
+button:hover {
+    opacity:0.9;
+}
 
-    print("✅ MongoDB Connected")
+#result {
+    background:#f1f5f9;
+    padding:10px;
+    margin-top:10px;
+}
 
-except Exception as e:
-    print("❌ MongoDB Connection Failed:", e)
-    raise Exception("Database connection failed")
+.loading {
+    color:blue;
+    font-weight:bold;
+}
+</style>
+</head>
 
-# =========================
-# PASSWORD HASH
-# =========================
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+<body>
 
-def hash_password(password):
-    return pwd_context.hash(password[:72])
+<h1>🚀 AI Marketing Generator</h1>
 
-def verify_password(password, hashed):
-    try:
-        return pwd_context.verify(password[:72], hashed)
-    except:
-        return False
+<div class="box">
 
-# =========================
-# JWT
-# =========================
-security = HTTPBearer()
+<!-- SIGNUP -->
+<div id="signupPage">
+<h2>Signup</h2>
 
-def create_token(data: dict):
-    expire = datetime.utcnow() + timedelta(hours=24)
-    data.update({"exp": expire})
-    return jwt.encode(data, SECRET_KEY, algorithm="HS256")
+<input id="firstName" placeholder="First Name">
+<input id="lastName" placeholder="Last Name">
 
-def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    try:
-        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=["HS256"])
-        return payload["username"]
-    except:
-        raise HTTPException(status_code=401, detail="Invalid token")
+<select id="gender">
+<option>Male</option>
+<option>Female</option>
+</select>
 
-# =========================
-# APP
-# =========================
-app = FastAPI()
+<input id="dob" type="date">
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+<input id="signupUsername" placeholder="Username">
+<input id="signupPassword" type="password" placeholder="Password">
+<input id="confirmPassword" type="password" placeholder="Confirm Password">
 
-# =========================
-# AI FUNCTION
-# =========================
-def ai_generate(prompt):
-    try:
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        print("AI Error:", e)
-        return "AI Error"
+<button onclick="signup()">Signup</button>
 
-# =========================
-# AUTH
-# =========================
-@app.post("/signup")
-def signup(data: dict):
-    if data.get("password") != data.get("confirm_password"):
-        return {"error": "Passwords do not match"}
-
-    if users_col.find_one({"username": data.get("username")}):
-        return {"error": "User already exists"}
-
-    users_col.insert_one({
-        "first_name": data.get("first_name"),
-        "last_name": data.get("last_name"),
-        "gender": data.get("gender"),
-        "dob": data.get("dob"),
-        "username": data.get("username"),
-        "password": hash_password(data.get("password"))
-    })
-
-    return {"message": "Account created successfully"}
+<p style="cursor:pointer;color:blue" onclick="showLogin()">Already signed? Login</p>
+</div>
 
 
-@app.post("/login")
-def login(data: dict):
-    user = users_col.find_one({"username": data.get("username")})
+<!-- LOGIN -->
+<div id="loginPage" style="display:none">
+<h2>Login</h2>
 
-    if not user:
-        return {"error": "User not found"}
+<input id="loginUsername" placeholder="Username">
+<input id="loginPassword" type="password" placeholder="Password">
 
-    if not verify_password(data.get("password"), user.get("password")):
-        return {"error": "Invalid password"}
+<button onclick="login()">Login</button>
 
-    token = create_token({"username": data.get("username")})
-
-    return {"message": "Login successful", "token": token}
-
-# =========================
-# GENERATE
-# =========================
-def build_prompt(platform, product, audience):
-    return f"""
-Create a HIGH-CONVERTING {platform} marketing plan.
-
-Product: {product}
-Audience: {audience}
-
-Give:
-1. Strategy
-2. Growth Plan
-3. Do's & Don'ts
-4. 5 Captions
-5. Hashtags
-6. CTA
-"""
-
-def run_agent(platform, product, audience):
-    return ai_generate(build_prompt(platform, product, audience))
+<p style="cursor:pointer;color:blue" onclick="showSignup()">New user? Signup</p>
+</div>
 
 
-@app.post("/generate")
-def generate(data: dict, username: str = Depends(verify_token)):
-    product = data.get("product")
-    audience = data.get("audience")
-    platform = data.get("platform")
+<!-- APP -->
+<div id="appPage" style="display:none">
 
-    if platform == "all":
-        platforms = ["Instagram", "Facebook Ads", "Google Ads", "YouTube Shorts", "YouTube Long"]
-        result = "\n\n".join([run_agent(p, product, audience) for p in platforms])
-    else:
-        result = run_agent(platform, product, audience)
+<h3>Welcome 👋</h3>
 
-    history_col.insert_one({
-        "username": username,
-        "product": product,
-        "audience": audience,
-        "platform": platform,
-        "result": result
-    })
+<input id="product" placeholder="Product">
+<input id="audience" placeholder="Audience">
 
-    return {"campaign": result}
+<select id="platform">
+<option value="Instagram">Instagram</option>
+<option value="Facebook Ads">Facebook Ads</option>
+<option value="Google Ads">Google Ads</option>
+<option value="YouTube Shorts">YouTube Shorts</option>
+<option value="YouTube Long">YouTube Long</option>
+<option value="all">All</option>
+</select>
 
-# =========================
-# HISTORY
-# =========================
-@app.get("/history")
-def history(username: str = Depends(verify_token)):
-    data = list(history_col.find({"username": username}, {"_id": 0}))
-    return {"history": data}
+<button onclick="generate()">Generate</button>
+<button onclick="loadHistory()">History</button>
+<button onclick="logout()">Logout</button>
 
-# =========================
-# FRONTEND
-# =========================
-@app.get("/")
-def home():
-    return FileResponse("index.html")
+<div id="result"></div>
+<div id="history"></div>
+
+</div>
+
+</div>
+
+<script>
+
+// =========================
+// BASE URL (FIXED FOR RENDER)
+// =========================
+const BASE_URL = window.location.origin;
+
+// =========================
+// PAGE SWITCH
+// =========================
+function showSignup(){
+    signupPage.style.display="block";
+    loginPage.style.display="none";
+    appPage.style.display="none";
+}
+
+function showLogin(){
+    signupPage.style.display="none";
+    loginPage.style.display="block";
+    appPage.style.display="none";
+}
+
+function showApp(){
+    signupPage.style.display="none";
+    loginPage.style.display="none";
+    appPage.style.display="block";
+}
+
+// =========================
+// SIGNUP
+// =========================
+async function signup(){
+    try{
+        const res = await fetch(BASE_URL + "/signup",{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({
+                first_name:firstName.value,
+                last_name:lastName.value,
+                gender:gender.value,
+                dob:dob.value,
+                username:signupUsername.value,
+                password:signupPassword.value,
+                confirm_password:confirmPassword.value
+            })
+        });
+
+        const d = await res.json();
+
+        alert(d.message || d.error || "Signup failed");
+
+        if(d.message){
+            showLogin();
+        }
+
+    }catch(err){
+        alert("❌ Signup error");
+        console.log(err);
+    }
+}
+
+// =========================
+// LOGIN
+// =========================
+async function login(){
+    try{
+        const res = await fetch(BASE_URL + "/login",{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({
+                username:loginUsername.value,
+                password:loginPassword.value
+            })
+        });
+
+        const d = await res.json();
+
+        if(d.token){
+            localStorage.setItem("token", d.token);
+            showApp();
+        } else {
+            alert(d.error || "Login failed");
+        }
+
+    }catch(err){
+        alert("❌ Login error");
+        console.log(err);
+    }
+}
+
+// =========================
+// GENERATE
+// =========================
+async function generate(){
+
+    const token = localStorage.getItem("token");
+
+    if(!token){
+        alert("Please login again");
+        return;
+    }
+
+    result.innerHTML = "<p class='loading'>⏳ Generating...</p>";
+
+    try{
+        const res = await fetch(BASE_URL + "/generate",{
+            method:"POST",
+            headers:{
+                "Content-Type":"application/json",
+                "Authorization":"Bearer " + token
+            },
+            body:JSON.stringify({
+                product:product.value,
+                audience:audience.value,
+                platform:platform.value
+            })
+        });
+
+        const d = await res.json();
+
+        if(d.campaign){
+            result.innerText = d.campaign;
+        } else {
+            result.innerText = d.detail || "Error generating";
+        }
+
+    }catch(err){
+        result.innerText = "❌ Error";
+        console.log(err);
+    }
+}
+
+// =========================
+// HISTORY
+// =========================
+async function loadHistory(){
+
+    const token = localStorage.getItem("token");
+
+    try{
+        const res = await fetch(BASE_URL + "/history",{
+            headers:{
+                "Authorization":"Bearer " + token
+            }
+        });
+
+        const d = await res.json();
+
+        if(!d.history){
+            history.innerText = "No history";
+            return;
+        }
+
+        history.innerHTML = "<h3>History</h3>" +
+            d.history.map(h => `
+            <div style="border:1px solid #ccc;margin:10px;padding:10px">
+                <b>${h.platform}</b><br>
+                ${h.product} → ${h.audience}
+            </div>
+            `).join("");
+
+    }catch(err){
+        history.innerText = "❌ Error loading history";
+        console.log(err);
+    }
+}
+
+// =========================
+// LOGOUT
+// =========================
+function logout(){
+    localStorage.removeItem("token");
+    location.reload();
+}
+
+// =========================
+// AUTO LOAD
+// =========================
+window.onload = ()=>{
+    const token = localStorage.getItem("token");
+    if(token) showApp();
+    else showSignup();
+}
+
+</script>
+
+</body>
+</html>
